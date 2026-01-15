@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Socket Presence Test</title>
+</head>
+
+<body>
+    <h2>Join Room</h2>
+
+    <input id="username" placeholder="Username" />
+    <input id="roomId" placeholder="Room ID" />
+    <button id="join">Join</button>
+
+    <h3>Users in room:</h3>
+    <ul id="users"></ul>
+
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io("http://localhost:4000");
+
+        const usersEl = document.getElementById("users");
+
+        socket.on("connect", () => {
+            console.log("CONNECTED:", socket.id);
+        });
+
+        socket.on("connect_error", (err) => {
+            console.error("CONNECT ERROR:", err);
+        });
+
+        document.getElementById("join").onclick = () => {
+            const username = document.getElementById("username").value;
+            const roomId = document.getElementById("roomId").value;
+
+            console.log("EMITTING join-room", { roomId, username });
+
+            socket.emit("join-room", { roomId, username });
+        };
+
+        socket.on("user-joined", (data) => {
+            console.log("RECEIVED user-joined", data);
+            renderUsers(data.users);
+        });
+
+        socket.on("user-left", (data) => {
+            console.log("RECEIVED user-left", data);
+            renderUsers(data.users);
+        });
+        socket.on("sync-code", (data) => {
+            console.log("RECEIVED sync-code", data);
+        });
+
+
+        function renderUsers(users) {
+            usersEl.innerHTML = "";
+            users.forEach((u) => {
+                const li = document.createElement("li");
+                li.textContent = u;
+                usersEl.appendChild(li);
+            });
+        }
+    </script>
+
+</body>
+
+</html>
