@@ -55,6 +55,8 @@ export default function Hero() {
                                     <a
                                         key={index}
                                         href={item.link}
+                                        target={item.link.startsWith("http") ? "_blank" : "_self"}
+                                        rel={item.link.startsWith("http") ? "noopener noreferrer" : undefined}
                                         className="relative text-sm text-neutral-300 hover:text-white transition-colors group"
                                     >
                                         {item.name}

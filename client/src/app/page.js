@@ -12,7 +12,7 @@ export default function Home() {
     <div className="min-h-screen bg-black">
       <Hero />
       <ScrollCards />
-      <div className=" py-20">
+      <div id="about" className=" py-20">
         <div className="max-w-7xl mx-auto px-18 mb-12 text-left">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 ">
             Everything you need to code together
