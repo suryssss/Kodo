@@ -7,7 +7,7 @@ export default function Hero() {
     const navItems = [
         { name: "Home", link: "#home" },
         { name: "About", link: "#about" },
-        { name: "Github", link: "#github" },
+        { name: "Github", link: "https://github.com/suryssss/Kodo" },
     ];
 
     return (
@@ -121,7 +121,7 @@ export default function Hero() {
                             </button>
                         </JoinRoomDialog>
 
-                        <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="group px-8 py-4 text-white font-semibold rounded-lg transition-all hover:text-emerald-400 flex items-center gap-2">
+                        <a href="https://github.com/suryssss/Kodo" target="_blank" rel="noopener noreferrer" className="group px-8 py-4 text-white font-semibold rounded-lg transition-all hover:text-emerald-400 flex items-center gap-2">
                             Github
                             <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

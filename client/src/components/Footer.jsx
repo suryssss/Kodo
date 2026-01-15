@@ -22,8 +22,8 @@ export default function Footer() {
                             and powerful tools.
                         </p>
                         <div className="flex gap-4 pt-2">
-                            <SocialLink href="#" icon={IconBrandGithub} label="GitHub" />
-                            <SocialLink href="#" icon={IconBrandLinkedin} label="Linkdin" />
+                            <SocialLink href="https://github.com/suryssss/Kodo" icon={IconBrandGithub} label="GitHub" />
+                            <SocialLink href="https://www.linkedin.com/in/rithwik-surya-aaa25932a" icon={IconBrandLinkedin} label="Linkdin" />
                         </div>
                     </div>
 
