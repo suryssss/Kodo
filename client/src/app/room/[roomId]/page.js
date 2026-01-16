@@ -68,9 +68,18 @@ export default function RoomPage() {
             roomId,
             username: storedUsername,
         });
+        socket.on("sync-room", ({ code, language, isLocked }) => {
+            isRemoteUpdate.current = true;
+            setCode(code);
+            setLanguage(language);
+            setIsLocked(isLocked);
+        });
         socket.on("sync-code", ({ code }) => {
             isRemoteUpdate.current = true;
             setCode(code);
+        });
+        socket.on("language-update", ({ language }) => {
+            setLanguage(language);
         });
         socket.on("lock-state-changed", ({ isLocked }) => {
             setIsLocked(isLocked);
@@ -88,7 +97,9 @@ export default function RoomPage() {
             socket.off("connect");
             socket.off("disconnect");
             socket.off("connect_error");
+            socket.off("sync-room");
             socket.off("sync-code");
+            socket.off("language-update");
             socket.off("lock-state-changed");
             socket.off("host-assigned");
             socket.off("user-joined");
@@ -176,6 +187,16 @@ export default function RoomPage() {
         setLanguage(newLanguage);
         const template = getLanguageTemplate(newLanguage);
         setCode(template);
+        if (isHost) {
+            socket.emit("language-change", {
+                roomId,
+                language: newLanguage,
+            });
+            socket.emit("code-change", {
+                roomId,
+                code: template,
+            });
+        }
     };
     const canEdit = (!isLocked || isHost) && !isViewer;
 

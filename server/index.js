@@ -49,14 +49,12 @@ io.on("connection", (socket) => {
 
         const room = rooms[roomId]
 
-        //sync existing code
-        io.to(socket.id).emit("sync-code", {
-            code: room.code
-        })
-
-        //Sync lock state
-        io.to(socket.id).emit("lock-state-changed", {
-            isLocked: room.isLocked
+        //sync room state (code, language, lock status)
+        io.to(socket.id).emit("sync-room", {
+            code: room.code,
+            language: room.language,
+            isLocked: room.isLocked,
+            hostSocketId: room.hostSocketId
         })
 
         if (!room.hostSocketId) {
@@ -160,6 +158,18 @@ io.on("connection", (socket) => {
             isLocked: room.isLocked
         })
     })
+
+    socket.on("language-change", ({ roomId, language }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        // Only host can change language
+        if (socket.id !== room.hostSocketId) return;
+
+        room.language = language;
+
+        io.to(roomId).emit("language-update", { language });
+    });
 
     socket.on("ping", (callback) => {
         if (typeof callback === "function") {
