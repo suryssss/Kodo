@@ -1,5 +1,5 @@
 "use client";
-import { IconCode, IconUsers, IconTerminal2, IconBrandVscode } from "@tabler/icons-react";
+import { IconCode, IconUsers, IconTerminal2, IconBrandVscode, IconPlus, IconShare, IconUserCode } from "@tabler/icons-react";
 import LightRays from './LightRays';
 import { JoinRoomDialog } from "./JoinRoomDialog";
 
@@ -106,12 +106,12 @@ export default function Hero() {
                             bg-clip-text
                             text-transparent
                             ">
-                        Code together,
+                        Write code together
                         <br />
-                        ship together, everywhere.
+                        with friends in real time
                     </h1>
                     <p className="text-lg md:text-xl text-white text-neutral-400 text-center max-w-3xl mx-auto mb-8 leading-relaxed">
-                        Seamlessly <span className="text-blue-400">💻 sync code</span>, <span className="text-purple-400">📡 broadcast changes</span>, and <span className="text-emerald-400">🤝 collaborate in real-time</span>
+                        Create a<span className="text-blue-400"> room</span>, <span className="text-purple-400"> invite friends,</span>, and <span className="text-emerald-400">watch everyone code together instantly</span>
                         <br />
                         across all sessions and devices—all in one platform
                     </p>
@@ -119,87 +119,64 @@ export default function Hero() {
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                         <JoinRoomDialog>
                             <button className="group px-8 py-4 bg-white text-black font-semibold rounded-lg transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.3)]">
-                                Try it out
+                                Click here to create the room
                             </button>
                         </JoinRoomDialog>
+                    </div>
+                    <div className="mt-24 w-full max-w-5xl mx-auto px-4">
+                        <h2 className="text-2xl md:text-3xl font-semibold text-center text-white mb-14">
+                            How it works ?
+                        </h2>
 
-                        <a href="https://github.com/suryssss/Kodo" target="_blank" rel="noopener noreferrer" className="group px-8 py-4 text-white font-semibold rounded-lg transition-all hover:text-emerald-400 flex items-center gap-2">
-                            Github
-                            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                            </svg>
-                        </a>
-                    </div>
-                    <div className="relative h-[400px] max-w-4xl mx-auto  mt-16">
-                        <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 1 }}>
-                            <line
-                                x1="50%"
-                                y1="60"
-                                x2="50%"
-                                y2="144"
-                                stroke="rgba(100,100,100,0.3)"
-                                strokeWidth="1.5"
-                                strokeDasharray="6,6"
-                            />
-                            <line
-                                x1="50%"
-                                y1="256"
-                                x2="50%"
-                                y2="340"
-                                stroke="rgba(100,100,100,0.3)"
-                                strokeWidth="1.5"
-                                strokeDasharray="6,6"
-                            />
-                            <line
-                                x1="60"
-                                y1="50%"
-                                x2="144"
-                                y2="50%"
-                                stroke="rgba(100,100,100,0.3)"
-                                strokeWidth="1.5"
-                                strokeDasharray="6,6"
-                            />
-                            <line
-                                x1="calc(100% - 144px)"
-                                y1="50%"
-                                x2="calc(100% - 60px)"
-                                y2="50%"
-                                stroke="rgba(100,100,100,0.3)"
-                                strokeWidth="1.5"
-                                strokeDasharray="6,6"
-                            />
-                        </svg>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ zIndex: 10 }}>
-                            <div className="relative">
-                                <div className="absolute inset-0 bg-emerald-500/20 rounded-3xl blur-3xl scale-150" />
-                                <div className="relative w-32 h-32 rounded-3xl bg-gradient-to-br from-emerald-500 via-emerald-400 to-teal-300 border-2 border-emerald-500/30 flex items-center justify-center shadow-2xl">
-                                    <svg className="w-14 h-14 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                                    </svg>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div className="group relative p-8 rounded-3xl bg-gradient-to-b from-white/[0.06] to-transparent border border-white/[0.08] hover:border-emerald-500/20 transition-all duration-300 hover:shadow-[0_0_40px_-12px_rgba(16,185,129,0.25)]">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center group-hover:ring-emerald-500/40 transition-all">
+                                        <IconPlus className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                                    </div>
+                                    <span className="text-xs font-medium text-emerald-400/80 tracking-wide uppercase">Step 1</span>
                                 </div>
+                                <h3 className="text-lg font-semibold text-white mb-2">
+                                    Create a room
+                                </h3>
+                                <p className="text-sm text-neutral-400 leading-relaxed">
+                                    Click one button to get your own private workspace. No signup required.
+                                </p>
+                            </div>
+                            <div className="group relative p-8 rounded-3xl bg-gradient-to-b from-white/[0.06] to-transparent border border-white/[0.08] hover:border-emerald-500/20 transition-all duration-300 hover:shadow-[0_0_40px_-12px_rgba(16,185,129,0.25)]">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center group-hover:ring-emerald-500/40 transition-all">
+                                        <IconShare className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                                    </div>
+                                    <span className="text-xs font-medium text-emerald-400/80 tracking-wide uppercase">Step 2</span>
+                                </div>
+                                <h3 className="text-lg font-semibold text-white mb-2">
+                                    Join using same room id
+                                </h3>
+                                <p className="text-sm text-neutral-400 leading-relaxed">
+                                    Send it to a friend, classmate, or mentor. They join instantly.
+                                </p>
+                            </div>
+                            <div className="group relative p-8 rounded-3xl bg-gradient-to-b from-white/[0.06] to-transparent border border-white/[0.08] hover:border-emerald-500/20 transition-all duration-300 hover:shadow-[0_0_40px_-12px_rgba(16,185,129,0.25)]">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 ring-1 ring-emerald-500/20 flex items-center justify-center group-hover:ring-emerald-500/40 transition-all">
+                                        <IconUserCode className="w-5 h-5 text-emerald-400" strokeWidth={2} />
+                                    </div>
+                                    <span className="text-xs font-medium text-emerald-400/80 tracking-wide uppercase">Step 3</span>
+                                </div>
+                                <h3 className="text-lg font-semibold text-white mb-2">
+                                    Code together
+                                </h3>
+                                <p className="text-sm text-neutral-400 leading-relaxed">
+                                    See the same screen, type together, and learn in real time.
+                                </p>
                             </div>
                         </div>
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2" style={{ zIndex: 5 }}>
-                            <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center hover:border-emerald-500/50 transition-all">
-                                <IconCode className="w-8 h-8 text-neutral-400" />
-                            </div>
-                        </div>
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2" style={{ zIndex: 5 }}>
-                            <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center hover:border-emerald-500/50 transition-all">
-                                <IconTerminal2 className="w-8 h-8 text-neutral-400" />
-                            </div>
-                        </div>
-                        <div className="absolute top-1/2 left-0 -translate-y-1/2" style={{ zIndex: 5 }}>
-                            <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center hover:border-emerald-500/50 transition-all">
-                                <IconUsers className="w-8 h-8 text-neutral-400" />
-                            </div>
-                        </div>
-                        <div className="absolute top-1/2 right-0 -translate-y-1/2" style={{ zIndex: 5 }}>
-                            <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-white/10 flex items-center justify-center hover:border-emerald-500/50 transition-all">
-                                <IconBrandVscode className="w-8 h-8 text-neutral-400" />
-                            </div>
-                        </div>
+                        <p className="text-center text-neutral-500 mt-12 text-sm">
+                            No downloads · No accounts · Just click and start
+                        </p>
                     </div>
+
                 </div>
             </div>
         </section>
