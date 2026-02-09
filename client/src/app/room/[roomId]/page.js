@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import socket from "@/lib/socket";
 import RoomHeader from "@/components/room/RoomHeader";
-import RoomSidebar from "@/components/room/RoomSidebar";
+import ChatSidebar from "@/components/room/ChatSidebar";
 import CodeEditor from "@/components/room/CodeEditor";
 import OutputConsole from "@/components/room/OutputConsole";
 
@@ -37,6 +37,7 @@ export default function RoomPage() {
     const [status, setStatus] = useState("Connecting...");
     const [systemLogs, setSystemLogs] = useState([]);
     const [roomStats, setRoomStats] = useState({ latency: null, protocol: "websocket", secure: false });
+    const [isChatOpen, setIsChatOpen] = useState(false);
     const editorRef = useRef(null);
     const isRemoteUpdate = useRef(false);
     const debouncedEmitRef = useRef(null);
@@ -253,6 +254,7 @@ export default function RoomPage() {
                 roomId={roomId}
                 status={status}
                 users={users}
+                username={username}
                 language={language}
                 handleLanguageChange={handleLanguageChange}
                 isRunning={isRunning}
@@ -263,6 +265,7 @@ export default function RoomPage() {
                 isViewer={isViewer}
                 copied={copied}
                 copyRoomId={copyRoomId}
+                roomStats={roomStats}
             />
 
             {/* Main Content */}
@@ -286,12 +289,12 @@ export default function RoomPage() {
                         setStdin={setStdin}
                     />
                 </section>
-
-                <RoomSidebar
-                    users={users}
-                    isHost={isHost}
+                <ChatSidebar
+                    socket={socket}
+                    roomId={roomId}
                     username={username}
-                    roomStats={roomStats}
+                    isOpen={isChatOpen}
+                    onToggle={() => setIsChatOpen(!isChatOpen)}
                 />
             </main>
         </div>

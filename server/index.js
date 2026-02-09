@@ -51,7 +51,8 @@ io.on("connection", (socket) => {
                 hostSocketId: socket.id,
                 code: "// Start coding together...",
                 isLocked: false,
-                language: "javascript"
+                language: "javascript",
+                messages: []
             }
         }
 
@@ -72,6 +73,9 @@ io.on("connection", (socket) => {
             isLocked: room.isLocked,
             hostSocketId: room.hostSocketId
         })
+
+        // Send chat history to new user
+        io.to(socket.id).emit("chat-history", room.messages)
 
         if (!room.hostSocketId) {
             room.hostSocketId = socket.id;
@@ -177,6 +181,29 @@ io.on("connection", (socket) => {
         room.language = language;
 
         io.to(roomId).emit("language-update", { language });
+    });
+
+    // Chat message handling
+    socket.on("send-message", ({ roomId, username, message }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+
+        const chatMessage = {
+            username,
+            message,
+            timestamp: Date.now(),
+            socketId: socket.id
+        };
+
+        // Store message in room history (limit to last 100 messages)
+        room.messages.push(chatMessage);
+        if (room.messages.length > 100) {
+            room.messages = room.messages.slice(-100);
+        }
+
+        // Broadcast to all users in the room
+        io.to(roomId).emit("chat-message", chatMessage);
+        log("Chat message sent:", username, message);
     });
 
     socket.on("ping", (callback) => {
