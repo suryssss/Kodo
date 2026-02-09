@@ -55,6 +55,8 @@ const LightRays = ({
   const cleanupFunctionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const observerRef = useRef(null);
+  const lastFrameTimeRef = useRef(0);
+  const TARGET_FRAME_TIME = 33.33;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -90,8 +92,11 @@ const LightRays = ({
       if (!containerRef.current) return;
 
       const renderer = new Renderer({
-        dpr: Math.min(window.devicePixelRatio, 2),
-        alpha: true
+        // Limit DPR to 1.5 for better performance on high-DPI screens
+        dpr: Math.min(window.devicePixelRatio, 1.5),
+        alpha: true,
+        antialias: false, // Disable antialiasing for performance
+        powerPreference: 'low-power' // Prefer integrated GPU
       });
       rendererRef.current = renderer;
 
@@ -255,6 +260,14 @@ void main() {
         if (!rendererRef.current || !uniformsRef.current || !meshRef.current) {
           return;
         }
+
+        // Frame rate limiting for better performance
+        const deltaTime = t - lastFrameTimeRef.current;
+        if (deltaTime < TARGET_FRAME_TIME) {
+          animationIdRef.current = requestAnimationFrame(loop);
+          return;
+        }
+        lastFrameTimeRef.current = t;
 
         uniforms.iTime.value = t * 0.001;
 

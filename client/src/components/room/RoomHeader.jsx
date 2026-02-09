@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { IconLock, IconLockOpen, IconUsers, IconCopy, IconCheck, IconPlayerPlay, IconEye } from "@tabler/icons-react";
 import {
     Select,
@@ -7,7 +8,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 
-export default function RoomHeader({
+function RoomHeader({
     roomId,
     status,
     users,
@@ -112,3 +113,4 @@ export default function RoomHeader({
         </header>
     );
 }
+export default memo(RoomHeader);

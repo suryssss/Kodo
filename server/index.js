@@ -1,10 +1,16 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const compression = require("compression");
 
 const rooms = require("./roomStore")
 
+const isProd = process.env.NODE_ENV === "production";
+const log = (...args) => !isProd && console.log(...args);
+
 const app = express()
+app.use(compression());
+
 const server = http.createServer(app)
 
 const io = new Server(server, {
@@ -12,6 +18,19 @@ const io = new Server(server, {
         origin: "*",
         methods: ["GET", "POST"],
     },
+    transports: ["websocket", "polling"],
+    perMessageDeflate: {
+        threshold: 1024,
+        zlibDeflateOptions: {
+            chunkSize: 16 * 1024
+        },
+        zlibInflateOptions: {
+            chunkSize: 16 * 1024
+        }
+    },
+    pingTimeout: 20000,
+    pingInterval: 25000,
+    allowEIO3: true
 })
 
 app.get("/", (req, res) => {
@@ -19,12 +38,12 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", (socket) => {
-    console.log("a user connected", socket.id)
+    log("a user connected", socket.id)
 
 
     //creating a room
     socket.on("join-room", ({ roomId, username }) => {
-        console.log("join-room received:", roomId, username);
+        log("join-room received:", roomId, username);
         if (socket.data.roomId) return;
         if (!rooms[roomId]) {
             rooms[roomId] = {
@@ -75,7 +94,7 @@ io.on("connection", (socket) => {
             users: userList
         })
 
-        console.log("join-room received:", roomId, username)
+        log("join-room received:", roomId, username)
 
     })
 
@@ -104,7 +123,7 @@ io.on("connection", (socket) => {
             const remaningsocketIds = Object.keys(room.users);
             if (remaningsocketIds.length > 0) {
                 room.hostSocketId = remaningsocketIds[0];
-                console.log("new host assigned:", room.hostSocketId);
+                log("new host assigned:", room.hostSocketId);
                 // Notification for the new host 
                 io.to(room.hostSocketId).emit("host-assigned", { isHost: true });
             } else {
@@ -135,12 +154,12 @@ io.on("connection", (socket) => {
         if (!room) return
 
         if (room.hostSocketId !== socket.id) {
-            console.log("only host can lock the room")
+            log("only host can lock the room")
             return
         }
         room.isLocked = !room.isLocked
 
-        console.log("room :",
+        log("room :",
             roomId,
             room.isLocked ? "Locked" : "Unlocked"
         )

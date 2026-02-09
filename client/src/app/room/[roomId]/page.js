@@ -1,12 +1,23 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import socket from "@/lib/socket";
 import RoomHeader from "@/components/room/RoomHeader";
 import RoomSidebar from "@/components/room/RoomSidebar";
 import CodeEditor from "@/components/room/CodeEditor";
 import OutputConsole from "@/components/room/OutputConsole";
+
+const debounce = (fn, delay) => {
+    let timeoutId;
+    const debouncedFn = (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
+    debouncedFn.cancel = () => clearTimeout(timeoutId);
+    return debouncedFn;
+};
+const CODE_SYNC_DEBOUNCE = 50;
 
 export default function RoomPage() {
     const { roomId } = useParams();
@@ -28,6 +39,7 @@ export default function RoomPage() {
     const [roomStats, setRoomStats] = useState({ latency: null, protocol: "websocket", secure: false });
     const editorRef = useRef(null);
     const isRemoteUpdate = useRef(false);
+    const debouncedEmitRef = useRef(null);
 
 
     const getLanguageTemplate = (lang) => {
@@ -107,20 +119,35 @@ export default function RoomPage() {
             socket.disconnect();
         };
     }, [roomId, router]);
+    useEffect(() => {
+        debouncedEmitRef.current = debounce((code) => {
+            socket.emit("code-change", { roomId, code });
+        }, CODE_SYNC_DEBOUNCE);
 
-    const handleEditorChange = (value) => {
+        return () => {
+            if (debouncedEmitRef.current) {
+                debouncedEmitRef.current.cancel();
+            }
+        };
+    }, [roomId]);
+
+    const handleEditorChange = useCallback((value) => {
         if (isRemoteUpdate.current) {
             isRemoteUpdate.current = false;
             return;
         }
 
-        setCode(value || "");
-        socket.emit("code-change", { roomId, code: value || "" });
-    };
+        const newCode = value || "";
+        setCode(newCode);
 
-    const handleEditorDidMount = (editor) => {
+        if (debouncedEmitRef.current) {
+            debouncedEmitRef.current(newCode);
+        }
+    }, []);
+
+    const handleEditorDidMount = useCallback((editor) => {
         editorRef.current = editor;
-    };
+    }, []);
 
     const toggleLock = () => {
         if (isHost) {
@@ -215,8 +242,7 @@ export default function RoomPage() {
                 });
             }
         };
-
-        const statsInterval = setInterval(checkStats, 2000);
+        const statsInterval = setInterval(checkStats, 10000);
 
         return () => clearInterval(statsInterval);
     }, []);

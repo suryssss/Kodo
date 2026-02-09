@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { IconTerminal, IconList } from "@tabler/icons-react";
 
-export default function OutputConsole({
+function OutputConsole({
     activeTab,
     setActiveTab,
     output,
@@ -55,3 +56,4 @@ export default function OutputConsole({
         </div>
     );
 }
+export default memo(OutputConsole);

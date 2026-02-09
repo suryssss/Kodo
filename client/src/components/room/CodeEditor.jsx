@@ -1,6 +1,19 @@
-import Editor from "@monaco-editor/react";
+import { memo } from "react";
+import dynamic from "next/dynamic";
 
-export default function CodeEditor({
+const Editor = dynamic(() => import("@monaco-editor/react").then(mod => mod.default), {
+    ssr: false,
+    loading: () => (
+        <div className="flex-1 flex items-center justify-center bg-neutral-900 rounded-lg">
+            <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-neutral-400 text-sm">Loading editor...</span>
+            </div>
+        </div>
+    ),
+});
+
+function CodeEditor({
     language,
     code,
     handleEditorChange,
@@ -36,9 +49,20 @@ export default function CodeEditor({
                     scrollBeyondLastLine: false,
                     automaticLayout: true,
                     tabSize: 2,
-                    renderValidationDecorations: "on"
+                    renderValidationDecorations: "on",
+                    // Performance optimizations
+                    renderWhitespace: "none",
+                    folding: false,
+                    glyphMargin: false,
+                    wordWrap: "off",
+                    scrollbar: {
+                        vertical: "auto",
+                        horizontal: "auto",
+                        useShadows: false
+                    }
                 }}
             />
         </section>
     );
 }
+export default memo(CodeEditor);

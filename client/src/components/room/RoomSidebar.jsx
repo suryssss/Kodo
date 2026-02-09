@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { IconUsers } from "@tabler/icons-react";
 
-export default function RoomSidebar({ users, isHost, username, roomStats }) {
+function RoomSidebar({ users, isHost, username, roomStats }) {
     return (
         <aside className="w-72 border-l border-neutral-800 bg-neutral-950 flex flex-col">
             <div className="p-4 border-b border-neutral-800">
@@ -63,3 +64,4 @@ export default function RoomSidebar({ users, isHost, username, roomStats }) {
         </aside>
     );
 }
+export default memo(RoomSidebar);
