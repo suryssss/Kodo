@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useRef, useEffect, memo, useMemo } from "react";
 import {
     IconSend,
     IconMessageCircle,
@@ -180,7 +180,7 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
         const index = name.charCodeAt(0) % colors.length;
         return colors[index];
     };
-    const groupedMessages = messages.reduce((acc, msg, idx) => {
+    const groupedMessages = useMemo(() => messages.reduce((acc, msg, idx) => {
         const prevMsg = messages[idx - 1];
         const isSameUser = prevMsg && prevMsg.username === msg.username && msg.type !== "system" && prevMsg.type !== "system";
         const timeDiff = prevMsg ? msg.timestamp - prevMsg.timestamp : Infinity;
@@ -196,7 +196,7 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
             });
         }
         return acc;
-    }, []);
+    }, []), [messages]);
 
     return (
         <>

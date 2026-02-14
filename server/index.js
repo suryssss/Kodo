@@ -28,9 +28,10 @@ const io = new Server(server, {
             chunkSize: 16 * 1024
         }
     },
-    pingTimeout: 20000,
+    pingTimeout: 60000,
     pingInterval: 25000,
-    allowEIO3: true
+    allowEIO3: true,
+    connectTimeout: 45000
 })
 
 app.get("/", (req, res) => {

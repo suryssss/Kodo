@@ -17,7 +17,7 @@ const debounce = (fn, delay) => {
     debouncedFn.cancel = () => clearTimeout(timeoutId);
     return debouncedFn;
 };
-const CODE_SYNC_DEBOUNCE = 50;
+const CODE_SYNC_DEBOUNCE = 300;
 
 export default function RoomPage() {
     const { roomId } = useParams();
@@ -35,7 +35,6 @@ export default function RoomPage() {
     const [copied, setCopied] = useState(false);
     const [isViewer, setIsViewer] = useState(false);
     const [status, setStatus] = useState("Connecting...");
-    const [systemLogs, setSystemLogs] = useState([]);
     const [roomStats, setRoomStats] = useState({ latency: null, protocol: "websocket", secure: false });
     const [isChatOpen, setIsChatOpen] = useState(false);
     const editorRef = useRef(null);
@@ -65,22 +64,35 @@ export default function RoomPage() {
         }
         setUsername(storedUsername);
         setIsViewer(storedIsViewer);
-        socket.connect();
-        socket.on("connect", () => {
+
+        const handleConnect = () => {
             setStatus("Connected");
-        });
+            socket.emit("join-room", {
+                roomId,
+                username: storedUsername,
+            });
+        };
 
-        socket.on("disconnect", () => {
+        const handleDisconnect = () => {
             setStatus("Disconnected");
-        });
+        };
 
-        socket.on("connect_error", () => {
+        const handleConnectError = (err) => {
             setStatus("Connection Error");
-        });
-        socket.emit("join-room", {
-            roomId,
-            username: storedUsername,
-        });
+            console.error("Socket connection error:", err);
+        };
+
+        socket.on("connect", handleConnect);
+        socket.on("disconnect", handleDisconnect);
+        socket.on("connect_error", handleConnectError);
+
+        if (!socket.connected) {
+            socket.connect();
+        } else {
+            // If already connected, join immediately
+            handleConnect();
+        }
+
         socket.on("sync-room", ({ code, language, isLocked }) => {
             isRemoteUpdate.current = true;
             setCode(code);
@@ -107,9 +119,9 @@ export default function RoomPage() {
             setUsers(userList);
         });
         return () => {
-            socket.off("connect");
-            socket.off("disconnect");
-            socket.off("connect_error");
+            socket.off("connect", handleConnect);
+            socket.off("disconnect", handleDisconnect);
+            socket.off("connect_error", handleConnectError);
             socket.off("sync-room");
             socket.off("sync-code");
             socket.off("language-update");
@@ -150,19 +162,19 @@ export default function RoomPage() {
         editorRef.current = editor;
     }, []);
 
-    const toggleLock = () => {
+    const toggleLock = useCallback(() => {
         if (isHost) {
             socket.emit("toggle-lock", { roomId });
         }
-    };
+    }, [isHost, roomId]);
 
-    const copyRoomId = () => {
+    const copyRoomId = useCallback(() => {
         navigator.clipboard.writeText(roomId);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
-    };
+    }, [roomId]);
 
-    const runCode = async () => {
+    const runCode = useCallback(async () => {
         setIsRunning(true);
         setOutput("Running code...\n");
         setActiveTab("output");
@@ -209,9 +221,9 @@ export default function RoomPage() {
         } finally {
             setIsRunning(false);
         }
-    };
+    }, [code, language, stdin]);
 
-    const handleLanguageChange = (newLanguage) => {
+    const handleLanguageChange = useCallback((newLanguage) => {
         setLanguage(newLanguage);
         const template = getLanguageTemplate(newLanguage);
         setCode(template);
@@ -225,7 +237,8 @@ export default function RoomPage() {
                 code: template,
             });
         }
-    };
+    }, [roomId, isHost]);
+
     const canEdit = (!isLocked || isHost) && !isViewer;
 
     useEffect(() => {
@@ -246,6 +259,10 @@ export default function RoomPage() {
         const statsInterval = setInterval(checkStats, 10000);
 
         return () => clearInterval(statsInterval);
+    }, []);
+
+    const toggleChat = useCallback(() => {
+        setIsChatOpen(prev => !prev);
     }, []);
 
     return (
@@ -294,7 +311,7 @@ export default function RoomPage() {
                     roomId={roomId}
                     username={username}
                     isOpen={isChatOpen}
-                    onToggle={() => setIsChatOpen(!isChatOpen)}
+                    onToggle={toggleChat}
                 />
             </main>
         </div>
