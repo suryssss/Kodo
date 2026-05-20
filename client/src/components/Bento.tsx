@@ -5,6 +5,7 @@ import {
     IconTableColumn,
 } from "@tabler/icons-react";
 import { BentoGrid, BentoGridItem } from "./ui/bento-grid";
+import { type ReactNode } from "react";
 
 export default function Bento() {
     const CodeSyncVisual = () => (
@@ -189,7 +190,15 @@ export default function Bento() {
         </div>
     );
 
-    const items = [
+    interface BentoItem {
+        title: string;
+        description: string;
+        header: ReactNode;
+        className: string;
+        icon: ReactNode;
+    }
+
+    const items: BentoItem[] = [
         {
             title: "Real-Time Code Sync",
             description:

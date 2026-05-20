@@ -1,10 +1,15 @@
 "use client";
-import { IconCode, IconUsers, IconTerminal2, IconBrandVscode, IconPlus, IconShare, IconUserCode } from "@tabler/icons-react";
+import { IconCode, IconPlus, IconShare, IconUserCode } from "@tabler/icons-react";
 import LightRays from './LightRays';
 import { JoinRoomDialog } from "./JoinRoomDialog";
 
+interface NavItem {
+    name: string;
+    link: string;
+}
+
 export default function Hero() {
-    const navItems = [
+    const navItems: NavItem[] = [
         { name: "Home", link: "#home" },
         { name: "About", link: "#about" },
         { name: "Github", link: "https://github.com/suryssss/Kodo" },

@@ -13,6 +13,16 @@ const Editor = dynamic(() => import("@monaco-editor/react").then(mod => mod.defa
     ),
 });
 
+interface CodeEditorProps {
+    language: string;
+    code: string;
+    handleEditorChange: (value: string | undefined) => void;
+    handleEditorDidMount: (editor: unknown) => void;
+    canEdit: boolean;
+    isViewer: boolean;
+    isLocked: boolean;
+}
+
 function CodeEditor({
     language,
     code,
@@ -21,7 +31,7 @@ function CodeEditor({
     canEdit,
     isViewer,
     isLocked
-}) {
+}: CodeEditorProps) {
     return (
         <section className="flex-1 rounded-lg border overflow-hidden transition-colors relative flex flex-col" style={{
             borderColor: !canEdit ? "rgba(239, 68, 68, 0.2)" : "rgb(38, 38, 38)",

@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils"
+import { type ReactNode } from "react";
 
 export function Marquee({
   className,
@@ -8,6 +9,14 @@ export function Marquee({
   vertical = false,
   repeat = 4,
   ...props
+}: {
+  className?: string;
+  reverse?: boolean;
+  pauseOnHover?: boolean;
+  children?: ReactNode;
+  vertical?: boolean;
+  repeat?: number;
+  [key: string]: any;
 }) {
   return (
     <div

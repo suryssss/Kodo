@@ -1,4 +1,16 @@
-import { IconBrandGithub, IconBrandTwitter, IconBrandDiscord, IconCode, IconHeart, IconBrandLinkedin } from "@tabler/icons-react";
+import { IconBrandGithub, IconBrandLinkedin, IconCode } from "@tabler/icons-react";
+import { type ComponentType, type ReactNode } from "react";
+
+interface SocialLinkProps {
+    href: string;
+    icon: ComponentType<{ className?: string }>;
+    label: string;
+}
+
+interface FooterLinkProps {
+    href: string;
+    children: ReactNode;
+}
 
 export default function Footer() {
     return (
@@ -43,7 +55,7 @@ export default function Footer() {
     );
 }
 
-function SocialLink({ href, icon: Icon, label }) {
+function SocialLink({ href, icon: Icon, label }: SocialLinkProps) {
     return (
         <a
             href={href}
@@ -55,7 +67,7 @@ function SocialLink({ href, icon: Icon, label }) {
     );
 }
 
-function FooterLink({ href, children }) {
+function FooterLink({ href, children }: FooterLinkProps) {
     return (
         <li>
             <a

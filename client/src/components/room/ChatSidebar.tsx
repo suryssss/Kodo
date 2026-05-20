@@ -1,14 +1,9 @@
-"use client";
+import { memo, useMemo, useEffect, useRef, useState } from "react";
+import { IconUsers, IconMessageCircle, IconX, IconChevronRight, IconMoodSmile, IconSend } from "@tabler/icons-react";
+import { Socket } from "socket.io-client";
 
-import { useState, useRef, useEffect, memo, useMemo } from "react";
-import {
-    IconSend,
-    IconMessageCircle,
-    IconMoodSmile,
-    IconX,
-    IconChevronRight
-} from "@tabler/icons-react";
-const EMOJI_CATEGORIES = {
+// Define Emoji Category map directly
+const EMOJI_CATEGORIES: Record<string, string[]> = {
     "😀 Smileys": ["😀", "😃", "😄", "😁", "😅", "😂", "🤣", "😊", "😇", "🙂", "😉", "😍", "🥰", "😘", "😋", "😎", "🤩", "🥳", "😏", "😒", "😞", "😢", "😭", "😤", "🤯", "😱", "🤗", "🤔", "🤫", "🤐"],
     "👍 Gestures": ["👍", "👎", "👌", "✌️", "🤞", "🤟", "🤘", "🤙", "👋", "🤚", "🖐️", "✋", "👏", "🙌", "👐", "🤝", "🙏", "💪", "🖕", "✍️"],
     "❤️ Hearts": ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘", "💝", "💟"],
@@ -16,13 +11,20 @@ const EMOJI_CATEGORIES = {
     "👨‍💻 Coding": ["👨‍💻", "👩‍💻", "🐛", "🔧", "⚙️", "🛠️", "📝", "📋", "📁", "💾", "🔒", "🔓", "🔑", "🏷️", "📌", "🔍", "💬", "🗨️", "📢", "📣"]
 };
 
-function EmojiPicker({ onSelect, onClose }) {
-    const [activeCategory, setActiveCategory] = useState(Object.keys(EMOJI_CATEGORIES)[0]);
-    const pickerRef = useRef(null);
+// Extracted Emoji Picker Component for better type checking
+interface EmojiPickerProps {
+    onSelect: (emoji: string) => void;
+    onClose: () => void;
+    activeCategory: string;
+    setActiveCategory: (category: string) => void;
+}
+
+function EmojiPicker({ onSelect, onClose, activeCategory, setActiveCategory }: EmojiPickerProps) {
+    const pickerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
                 onClose();
             }
         };
@@ -33,9 +35,8 @@ function EmojiPicker({ onSelect, onClose }) {
     return (
         <div
             ref={pickerRef}
-            className="absolute bottom-full mb-2 left-0 w-80 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+            className="absolute bottom-full mb-2 right-4 w-80 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
         >
-            {/* Header */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-neutral-800 bg-neutral-950">
                 <span className="text-xs font-semibold text-neutral-400">Choose an Emoji</span>
                 <button
@@ -72,32 +73,43 @@ function EmojiPicker({ onSelect, onClose }) {
                     ))}
                 </div>
             </div>
-            <div className="px-3 py-2 border-t border-neutral-800 bg-neutral-950/50">
-                <p className="text-[10px] text-neutral-500 mb-1.5">Frequently used</p>
-                <div className="flex gap-1">
-                    {["👍", "❤️", "😂", "🔥", "✨", "🚀", "💯", "👏"].map((emoji, idx) => (
-                        <button
-                            key={idx}
-                            onClick={() => onSelect(emoji)}
-                            className="w-7 h-7 flex items-center justify-center text-lg hover:bg-neutral-800 rounded transition-all"
-                        >
-                            {emoji}
-                        </button>
-                    ))}
-                </div>
-            </div>
         </div>
     );
 }
 
-function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount = 0 }) {
-    const [messages, setMessages] = useState([]);
+// -------------------------------------------------------------
+// Component logic below
+// -------------------------------------------------------------
+
+export interface ChatMessage {
+    username: string;
+    message: string;
+    timestamp: number;
+    socketId?: string;
+    type?: string;
+}
+
+interface ChatSidebarProps {
+    socket: Socket;
+    roomId: string;
+    username: string;
+    isOpen: boolean;
+    onToggle: () => void;
+    unreadCount?: number;
+}
+
+function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount = 0 }: ChatSidebarProps) {
+    // using local React state for messages, no changes needed
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [localUnreadCount, setLocalUnreadCount] = useState(0);
-    const messagesEndRef = useRef(null);
-    const inputRef = useRef(null);
-    const messagesContainerRef = useRef(null);
+    const [activeCategory, setActiveCategory] = useState(Object.keys(EMOJI_CATEGORIES)[0]);
+
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const messagesContainerRef = useRef<HTMLDivElement>(null);
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -105,22 +117,24 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
     useEffect(() => {
         if (isOpen) {
             setLocalUnreadCount(0);
         }
     }, [isOpen]);
+
     useEffect(() => {
         if (!socket) return;
 
-        const handleNewMessage = (message) => {
+        const handleNewMessage = (message: ChatMessage) => {
             setMessages((prev) => [...prev, message]);
             if (!isOpen && message.username !== username) {
                 setLocalUnreadCount((prev) => prev + 1);
             }
         };
 
-        const handleChatHistory = (history) => {
+        const handleChatHistory = (history: ChatMessage[]) => {
             setMessages(history);
         };
 
@@ -133,7 +147,7 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
         };
     }, [socket, isOpen, username]);
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!newMessage.trim() || !socket) return;
@@ -149,26 +163,26 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
         inputRef.current?.focus();
     };
 
-    const handleKeyPress = (e) => {
+    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
             handleSendMessage(e);
         }
     };
 
-    const handleEmojiSelect = (emoji) => {
+    const handleEmojiSelect = (emoji: string) => {
         setNewMessage((prev) => prev + emoji);
         inputRef.current?.focus();
     };
 
-    const formatTime = (timestamp) => {
+    const formatTime = (timestamp: number) => {
         return new Date(timestamp).toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit"
         });
     };
 
-    const getAvatarColor = (name) => {
+    const getAvatarColor = (name: string) => {
         const colors = [
             "from-purple-500 to-violet-600",
             "from-blue-500 to-cyan-600",
@@ -180,7 +194,8 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
         const index = name.charCodeAt(0) % colors.length;
         return colors[index];
     };
-    const groupedMessages = useMemo(() => messages.reduce((acc, msg, idx) => {
+
+    const groupedMessages = useMemo(() => messages.reduce((acc: { username: string; messages: ChatMessage[]; type?: string }[], msg, idx) => {
         const prevMsg = messages[idx - 1];
         const isSameUser = prevMsg && prevMsg.username === msg.username && msg.type !== "system" && prevMsg.type !== "system";
         const timeDiff = prevMsg ? msg.timestamp - prevMsg.timestamp : Infinity;
@@ -327,6 +342,8 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
                         <EmojiPicker
                             onSelect={handleEmojiSelect}
                             onClose={() => setShowEmojiPicker(false)}
+                            activeCategory={activeCategory}
+                            setActiveCategory={setActiveCategory}
                         />
                     )}
 
@@ -348,7 +365,7 @@ function ChatSidebar({ socket, roomId, username, isOpen, onToggle, unreadCount =
                             type="text"
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
-                            onKeyPress={handleKeyPress}
+                            onKeyDown={handleKeyPress}
                             placeholder="Type a message..."
                             className="flex-1 bg-neutral-800 border border-neutral-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all"
                             maxLength={500}

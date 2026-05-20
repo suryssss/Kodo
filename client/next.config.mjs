@@ -1,11 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
-  optimizePackageImports: [
-    '@tabler/icons-react',
-    'lucide-react',
-    '@radix-ui/react-icons'
-  ],
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
@@ -16,6 +11,11 @@ const nextConfig = {
   compress: true,
   experimental: {
     optimizeCss: true,
+    optimizePackageImports: [
+      '@tabler/icons-react',
+      'lucide-react',
+      '@radix-ui/react-icons'
+    ]
   },
 };
 

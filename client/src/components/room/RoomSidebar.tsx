@@ -1,7 +1,26 @@
 import { memo } from "react";
 import { IconUsers } from "@tabler/icons-react";
 
-function RoomSidebar({ users, isHost, username, roomStats }) {
+interface UserInfo {
+    username: string;
+    socketId: string;
+    isHost: boolean;
+}
+
+interface RoomStats {
+    latency: number | null;
+    protocol: string;
+    secure: boolean;
+}
+
+interface RoomSidebarProps {
+    users: UserInfo[];
+    isHost: boolean;
+    username: string;
+    roomStats: RoomStats;
+}
+
+function RoomSidebar({ users, isHost, username, roomStats }: RoomSidebarProps) {
     return (
         <aside className="w-72 border-l border-neutral-800 bg-neutral-950 flex flex-col">
             <div className="p-4 border-b border-neutral-800">
@@ -44,7 +63,7 @@ function RoomSidebar({ users, isHost, username, roomStats }) {
                 <div className="space-y-2 text-xs text-neutral-400">
                     <div className="flex justify-between">
                         <span>Latency</span>
-                        <span className={`${roomStats?.latency > 100 ? "text-yellow-400" : roomStats?.latency > 300 ? "text-red-400" : "text-emerald-400"}`}>
+                        <span className={`${roomStats?.latency && roomStats.latency > 100 ? "text-yellow-400" : roomStats?.latency && roomStats.latency > 300 ? "text-red-400" : "text-emerald-400"}`}>
                             {roomStats?.latency ? `~${roomStats.latency}ms` : "Measuring..."}
                         </span>
                     </div>

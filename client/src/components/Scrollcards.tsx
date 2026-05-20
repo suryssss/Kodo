@@ -1,8 +1,16 @@
 import { Marquee } from "./ui/marquee";
 import { IconPlugConnected, IconUsers, IconRefresh, IconLock, IconServer, IconCode, IconBolt, IconNetwork } from "@tabler/icons-react";
+import { type ComponentType } from "react";
+
+interface Feature {
+    name: string;
+    description: string;
+    icon: ComponentType<{ className?: string }>;
+    color: string;
+}
 
 export default function ScrollCards() {
-    const features = [
+    const features: Feature[] = [
         {
             name: "WebSocket Sync",
             description: "Real-time bidirectional communication",
@@ -53,7 +61,7 @@ export default function ScrollCards() {
         },
     ];
 
-    const FeatureCard = ({ feature }) => {
+    const FeatureCard = ({ feature }: { feature: Feature }) => {
         const Icon = feature.icon;
         return (
             <div className="group relative flex flex-col gap-4 rounded-2xl border border-white/10 bg-neutral-900/50 backdrop-blur-sm p-6 hover:border-emerald-500/30 transition-all duration-300 hover:scale-105 min-w-[280px]">

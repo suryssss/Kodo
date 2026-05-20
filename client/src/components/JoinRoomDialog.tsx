@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, FormEvent, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
     Dialog,
@@ -10,14 +10,18 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 
-export function JoinRoomDialog({ children }) {
+interface JoinRoomDialogProps {
+    children: ReactNode;
+}
+
+export function JoinRoomDialog({ children }: JoinRoomDialogProps) {
     const router = useRouter();
     const [name, setName] = useState("");
     const [roomId, setRoomId] = useState("");
     const [isViewer, setIsViewer] = useState(false);
     const [open, setOpen] = useState(false);
 
-    const handleJoinRoom = (e) => {
+    const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         if (!name.trim() || !roomId.trim()) {
