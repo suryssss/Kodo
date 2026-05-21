@@ -7,14 +7,16 @@ generator client {
 }
 
 model Room {
-  id           String    @id
-  code         String    @default("")
-  language     String    @default("javascript")
-  isLocked     Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id           String             @id
+  code         String             @default("")
+  language     String             @default("javascript")
+  isLocked     Boolean            @default(false)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   messages     Message[]
   sessions     Session[]
+  executions   ExecutionHistory[]
+  summaries    SessionSummary[]
 }
 
 model Session {
@@ -35,4 +37,29 @@ model Message {
   socketId  String
   isAi      Boolean  @default(false)
   timestamp DateTime @default(now())
+}
+
+model ExecutionHistory {
+  id            String   @id @default(uuid())
+  roomId        String
+  room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  username      String
+  code          String
+  language      String
+  stdin         String   @default("")
+  output        String
+  isError       Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  aiExplanation String?
+  aiReview      String?
+}
+
+model SessionSummary {
+  id        String   @id @default(uuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  summary   String
+  finalCode String
+  stats     String
+  createdAt DateTime @default(now())
 }

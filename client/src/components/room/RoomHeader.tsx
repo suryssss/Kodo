@@ -10,6 +10,7 @@ import {
     IconUsers,
     IconWifi,
     IconWifiOff,
+    IconSparkles,
 } from "@tabler/icons-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import RoomSidebar from "./RoomSidebar";
@@ -42,6 +43,7 @@ interface RoomHeaderProps {
     copied: boolean;
     copyRoomId: () => void;
     roomStats: RoomStats;
+    onSummarize: () => void;
 }
 
 function RoomHeader({
@@ -60,6 +62,7 @@ function RoomHeader({
     copied,
     copyRoomId,
     roomStats,
+    onSummarize,
 }: RoomHeaderProps) {
     const handleRunClick = (e: MouseEvent<HTMLButtonElement>) => {
         // Find the button with the ripple effect class
@@ -186,6 +189,17 @@ function RoomHeader({
                         {isLocked ? <IconLock className="w-4 h-4" /> : <IconLockOpen className="w-4 h-4" />}
                     </button>
                 )}
+
+                <div className="h-6 w-px bg-neutral-800 hidden sm:block" />
+
+                <button
+                    onClick={onSummarize}
+                    className="group relative flex items-center gap-1.5 px-3 py-2 bg-violet-500/10 hover:bg-violet-500/20 text-violet-400 border border-violet-500/20 rounded-lg text-xs font-medium transition-all hover:shadow-[0_0_15px_rgba(139,92,246,0.15)]"
+                    title="End Session & Generate AI Summary"
+                >
+                    <IconSparkles className="w-3.5 h-3.5" />
+                    <span className="hidden lg:inline">Summarize</span>
+                </button>
             </div>
         </header>
     );

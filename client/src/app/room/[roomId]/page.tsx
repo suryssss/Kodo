@@ -7,6 +7,7 @@ import RoomHeader from "@/components/room/RoomHeader";
 import ChatSidebar from "@/components/room/ChatSidebar";
 import CodeEditor from "@/components/room/CodeEditor";
 import OutputConsole from "@/components/room/OutputConsole";
+import SessionSummaryDialog from "@/components/room/SessionSummaryDialog";
 
 interface DebouncedFn {
     (...args: string[]): void;
@@ -36,6 +37,13 @@ interface UserInfo {
     isHost: boolean;
 }
 
+interface AiDebugInfo {
+    executionId: string | null;
+    explanation: string;
+    fixedCode: string;
+    originalError: string;
+}
+
 const languageTemplates: Record<string, string> = {
     javascript: "// Start coding together...\nconsole.log('Hello from Live Coding Room!');",
     typescript: "// Start coding together...\nconsole.log('Hello from Live Coding Room!');",
@@ -46,7 +54,9 @@ const languageTemplates: Record<string, string> = {
     rust: "// Start coding together...\nfn main() {\n    println!(\"Hello from Live Coding Room!\");\n}",
 };
 
-
+const MIN_CONSOLE_HEIGHT = 100;
+const MAX_CONSOLE_HEIGHT = 500;
+const DEFAULT_CONSOLE_HEIGHT = 256;
 
 export default function RoomPage() {
     const params = useParams();
@@ -70,6 +80,18 @@ export default function RoomPage() {
     const editorRef = useRef<unknown>(null);
     const isRemoteUpdate = useRef(false);
     const debouncedEmitRef = useRef<DebouncedFn | null>(null);
+
+    // --- AI Feature State ---
+    const [executionId, setExecutionId] = useState<string | null>(null);
+    const [aiDebugInfo, setAiDebugInfo] = useState<AiDebugInfo | null>(null);
+    const [sidebarTab, setSidebarTab] = useState<"chat" | "ai">("chat");
+    const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+
+    // --- Resizable Console State ---
+    const [consoleHeight, setConsoleHeight] = useState(DEFAULT_CONSOLE_HEIGHT);
+    const isDragging = useRef(false);
+    const dragStartY = useRef(0);
+    const dragStartHeight = useRef(0);
 
 
     const getLanguageTemplate = (lang: string): string => {
@@ -139,6 +161,15 @@ export default function RoomPage() {
         socket.on("user-left", ({ users: userList }: { username: string; users: UserInfo[] }) => {
             setUsers(userList);
         });
+
+        // AI Error Debug event - auto-received when Piston returns an error
+        socket.on("ai-error-debug", (debugInfo: AiDebugInfo) => {
+            setAiDebugInfo(debugInfo);
+            // Auto-open sidebar and switch to AI tab
+            setIsChatOpen(true);
+            setSidebarTab("ai");
+        });
+
         return () => {
             socket.off("connect", handleConnect);
             socket.off("disconnect", handleDisconnect);
@@ -150,6 +181,7 @@ export default function RoomPage() {
             socket.off("host-assigned");
             socket.off("user-joined");
             socket.off("user-left");
+            socket.off("ai-error-debug");
             socket.disconnect();
         };
     }, [roomId, router]);
@@ -199,6 +231,8 @@ export default function RoomPage() {
         setIsRunning(true);
         setOutput("Running code...\n");
         setActiveTab("output");
+        // Clear previous AI debug info on new run
+        setAiDebugInfo(null);
 
         try {
             const backendUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
@@ -211,6 +245,8 @@ export default function RoomPage() {
                     code,
                     language,
                     stdin,
+                    roomId,
+                    username,
                 }),
             });
 
@@ -221,6 +257,10 @@ export default function RoomPage() {
                 } else {
                     setOutput(result.output || "No output");
                 }
+                // Store execution ID for AI features
+                if (result.executionId) {
+                    setExecutionId(result.executionId);
+                }
             } else {
                 setOutput(result.error || "Error: Could not execute code");
             }
@@ -230,7 +270,7 @@ export default function RoomPage() {
         } finally {
             setIsRunning(false);
         }
-    }, [code, language, stdin]);
+    }, [code, language, stdin, roomId, username]);
 
     const handleLanguageChange = useCallback((newLanguage: string) => {
         setLanguage(newLanguage);
@@ -249,6 +289,62 @@ export default function RoomPage() {
     }, [roomId, isHost]);
 
     const canEdit = (!isLocked || isHost) && !isViewer;
+
+    // --- AI Feature Handlers ---
+
+    const handleApplyFix = useCallback((fixedCode: string) => {
+        isRemoteUpdate.current = true;
+        setCode(fixedCode);
+        setAiDebugInfo(null);
+        // Broadcast to all users via socket
+        socket.emit("ai-fix-applied", { roomId, fixedCode });
+    }, [roomId]);
+
+    const handleExplainClick = useCallback(() => {
+        setIsChatOpen(true);
+        setSidebarTab("ai");
+    }, []);
+
+    const handleReviewClick = useCallback(() => {
+        setIsChatOpen(true);
+        setSidebarTab("ai");
+    }, []);
+
+    const handleSidebarTabChange = useCallback((tab: "chat" | "ai") => {
+        setSidebarTab(tab);
+    }, []);
+
+    // --- Resizable Console Handlers ---
+
+    const handleResizeStart = useCallback((e: React.PointerEvent) => {
+        e.preventDefault();
+        isDragging.current = true;
+        dragStartY.current = e.clientY;
+        dragStartHeight.current = consoleHeight;
+
+        const handlePointerMove = (moveEvent: PointerEvent) => {
+            if (!isDragging.current) return;
+            const delta = dragStartY.current - moveEvent.clientY;
+            const newHeight = Math.min(
+                MAX_CONSOLE_HEIGHT,
+                Math.max(MIN_CONSOLE_HEIGHT, dragStartHeight.current + delta)
+            );
+            setConsoleHeight(newHeight);
+        };
+
+        const handlePointerUp = () => {
+            isDragging.current = false;
+            document.removeEventListener("pointermove", handlePointerMove);
+            document.removeEventListener("pointerup", handlePointerUp);
+            document.body.style.userSelect = "";
+            document.body.style.cursor = "";
+        };
+
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "ns-resize";
+        document.addEventListener("pointermove", handlePointerMove);
+        document.addEventListener("pointerup", handlePointerUp);
+    }, [consoleHeight]);
 
     useEffect(() => {
         const checkStats = () => {
@@ -292,6 +388,7 @@ export default function RoomPage() {
                 copied={copied}
                 copyRoomId={copyRoomId}
                 roomStats={roomStats}
+                onSummarize={() => setShowSummaryDialog(true)}
             />
 
             {/* Main Content */}
@@ -313,6 +410,11 @@ export default function RoomPage() {
                         output={output}
                         stdin={stdin}
                         setStdin={setStdin}
+                        consoleHeight={consoleHeight}
+                        onResizeStart={handleResizeStart}
+                        onExplainClick={handleExplainClick}
+                        onReviewClick={handleReviewClick}
+                        hasOutput={!!output && output !== "Running code...\n"}
                     />
                 </section>
                 <ChatSidebar
@@ -321,8 +423,24 @@ export default function RoomPage() {
                     username={username}
                     isOpen={isChatOpen}
                     onToggle={toggleChat}
+                    code={code}
+                    language={language}
+                    output={output}
+                    executionId={executionId}
+                    aiDebugInfo={aiDebugInfo}
+                    onApplyFix={handleApplyFix}
+                    canEdit={canEdit}
+                    sidebarTab={sidebarTab}
+                    onSidebarTabChange={handleSidebarTabChange}
                 />
             </main>
+
+            {/* Session Summary Dialog */}
+            <SessionSummaryDialog
+                isOpen={showSummaryDialog}
+                onClose={() => setShowSummaryDialog(false)}
+                roomId={roomId}
+            />
         </div>
     );
 }

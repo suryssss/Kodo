@@ -14,6 +14,7 @@ try {
 import { prisma } from "./db";
 import { Message as PrismaMessage } from "@prisma/client";
 import rooms, { ChatMessage, Room } from "./roomStore";
+import { explainCode, reviewCode, debugError, summarizeSession, chatFollowUp } from "./gemini";
 
 // Extend Socket.data to store roomId
 interface SocketData {
@@ -52,7 +53,7 @@ const JDOODLE_LANG_MAP: Record<string, { language: string; versionIndex: string 
 // JDoodle Code Execution proxy endpoint
 app.post("/api/execute", async (req: Request, res: Response): Promise<void> => {
     try {
-        const { code, language, stdin } = req.body;
+        const { code, language, stdin, roomId, username } = req.body;
 
         const clientId = process.env.CLIENT_ID;
         const clientSecret = process.env.CLIENT_SECRET || process.env.CLIENT_SECRECT;
@@ -99,13 +100,64 @@ app.post("/api/execute", async (req: Request, res: Response): Promise<void> => {
         }
 
         const data = (await response.json()) as any;
+        const outputText = data.output || "";
+        const isError = !!(data.error || (data.statusCode && data.statusCode !== 200) || /error|exception|traceback|undefined is not|cannot read|segmentation fault/i.test(outputText));
+
+        // Save execution history to DB
+        let executionId: string | null = null;
+        if (roomId && username) {
+            try {
+                const execution = await prisma.executionHistory.create({
+                    data: {
+                        roomId,
+                        username,
+                        code,
+                        language,
+                        stdin: stdin || "",
+                        output: outputText,
+                        isError,
+                    }
+                });
+                executionId = execution.id;
+            } catch (dbErr) {
+                console.error("Failed to save execution history:", dbErr);
+            }
+        }
+
+        // If error detected, auto-debug with AI asynchronously
+        if (isError && roomId) {
+            // Fire-and-forget: don't block the response
+            (async () => {
+                try {
+                    const debugResult = await debugError(code, language, outputText);
+                    // Broadcast to all users in the room
+                    io.to(roomId).emit("ai-error-debug", {
+                        executionId,
+                        explanation: debugResult.explanation,
+                        fixedCode: debugResult.fixedCode,
+                        originalError: outputText,
+                    });
+                    // Save to DB
+                    if (executionId) {
+                        await prisma.executionHistory.update({
+                            where: { id: executionId },
+                            data: { aiExplanation: debugResult.explanation }
+                        }).catch(() => {});
+                    }
+                } catch (aiErr) {
+                    console.error("AI auto-debug failed:", aiErr);
+                }
+            })();
+        }
 
         res.json({
-            output: data.output || "",
+            output: outputText,
             statusCode: data.statusCode,
             memory: data.memory,
             cpuTime: data.cpuTime,
-            error: data.error || null
+            error: data.error || null,
+            executionId,
+            isError,
         });
 
     } catch (err: any) {
@@ -114,6 +166,100 @@ app.post("/api/execute", async (req: Request, res: Response): Promise<void> => {
             error: "An internal error occurred during code compilation.",
             details: err.message
         });
+    }
+});
+
+// --- AI Endpoints ---
+
+// Explain code + output
+app.post("/api/ai/explain", async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { code, language, output, executionId } = req.body;
+        const explanation = await explainCode(code, language, output || "");
+
+        // Save to DB if executionId provided
+        if (executionId) {
+            await prisma.executionHistory.update({
+                where: { id: executionId },
+                data: { aiExplanation: explanation }
+            }).catch(() => {});
+        }
+
+        res.json({ explanation });
+    } catch (err: any) {
+        console.error("AI explain error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Review code
+app.post("/api/ai/review", async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { code, language, executionId } = req.body;
+        const review = await reviewCode(code, language);
+
+        if (executionId) {
+            await prisma.executionHistory.update({
+                where: { id: executionId },
+                data: { aiReview: review }
+            }).catch(() => {});
+        }
+
+        res.json({ review });
+    } catch (err: any) {
+        console.error("AI review error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// AI chat follow-up
+app.post("/api/ai/chat", async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { code, language, previousContext, question } = req.body;
+        const answer = await chatFollowUp(code, language, previousContext || "", question);
+        res.json({ answer });
+    } catch (err: any) {
+        console.error("AI chat error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Session summarizer
+app.post("/api/ai/summarize", async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { roomId } = req.body;
+        if (!roomId) {
+            res.status(400).json({ error: "roomId is required" });
+            return;
+        }
+
+        const room = rooms[roomId];
+        const finalCode = room?.code || "";
+        const language = room?.language || "javascript";
+        const participants = room ? Object.values(room.users).map(u => u.username) : [];
+
+        // Get execution stats from DB
+        const [executionCount, errorCount] = await Promise.all([
+            prisma.executionHistory.count({ where: { roomId } }),
+            prisma.executionHistory.count({ where: { roomId, isError: true } }),
+        ]);
+
+        const summary = await summarizeSession(finalCode, language, executionCount, errorCount, participants);
+
+        // Save summary to DB
+        const saved = await prisma.sessionSummary.create({
+            data: {
+                roomId,
+                summary,
+                finalCode,
+                stats: JSON.stringify({ executionCount, errorCount, participants }),
+            }
+        });
+
+        res.json({ id: saved.id, summary, stats: { executionCount, errorCount, participants } });
+    } catch (err: any) {
+        console.error("AI summarize error:", err);
+        res.status(500).json({ error: err.message });
     }
 });
 
@@ -406,6 +552,33 @@ io.on("connection", (socket: Socket) => {
         if (typeof callback === "function") {
             callback();
         }
+    });
+
+    // AI Fix Applied - broadcast fixed code to all users in the room
+    socket.on("ai-fix-applied", ({ roomId, fixedCode }: { roomId: string; fixedCode: string }) => {
+        const room = rooms[roomId];
+        if (!room) return;
+        // Only allow host or editors to apply fixes
+        if (room.isLocked && socket.id !== room.hostSocketId) return;
+
+        room.code = fixedCode;
+        io.to(roomId).emit("sync-code", { code: fixedCode });
+
+        // Debounced save to DB
+        if (debounceTimers[roomId]) {
+            clearTimeout(debounceTimers[roomId]);
+        }
+        debounceTimers[roomId] = setTimeout(async () => {
+            try {
+                await prisma.room.update({
+                    where: { id: roomId },
+                    data: { code: fixedCode }
+                });
+                log(`Saved AI-fixed code for room ${roomId} to DB.`);
+            } catch (error) {
+                console.error(`Failed to save AI-fixed code for room ${roomId}:`, error);
+            }
+        }, 5000);
     });
 });
 
