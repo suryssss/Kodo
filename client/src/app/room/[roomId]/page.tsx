@@ -46,6 +46,8 @@ const languageTemplates: Record<string, string> = {
     rust: "// Start coding together...\nfn main() {\n    println!(\"Hello from Live Coding Room!\");\n}",
 };
 
+
+
 export default function RoomPage() {
     const params = useParams();
     const roomId = params.roomId as string;
@@ -199,41 +201,28 @@ export default function RoomPage() {
         setActiveTab("output");
 
         try {
-            const languageMap: Record<string, string> = {
-                javascript: "javascript",
-                typescript: "typescript",
-                python: "python",
-                java: "java",
-                cpp: "cpp",
-                go: "go",
-                rust: "rust",
-            };
-
-            const pistonLanguage = languageMap[language] || "javascript";
-
-            const response = await fetch("https://emkc.org/api/v2/piston/execute", {
+            const backendUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
+            const response = await fetch(`${backendUrl}/api/execute`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    language: pistonLanguage,
-                    version: "*",
-                    files: [
-                        {
-                            content: code,
-                        },
-                    ],
-                    stdin: stdin,
+                    code,
+                    language,
+                    stdin,
                 }),
             });
+
             const result = await response.json();
-            if (result.run) {
-                const output = result.run.output || "No output";
-                const stderr = result.run.stderr || "";
-                setOutput(stderr ? `Error:\n${stderr}` : output);
+            if (response.ok) {
+                if (result.error) {
+                    setOutput(`Error: ${result.error}`);
+                } else {
+                    setOutput(result.output || "No output");
+                }
             } else {
-                setOutput("Error: Could not execute code");
+                setOutput(result.error || "Error: Could not execute code");
             }
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Unknown error";

@@ -2,8 +2,13 @@ import express, { Request, Response } from "express";
 import http from "http";
 import { Server, Socket } from "socket.io";
 import compression from "compression";
+import path from "path";
 
 import rooms, { ChatMessage, Room } from "./roomStore";
+try {
+    process.loadEnvFile(path.resolve(__dirname, "../.env.local"));
+} catch (err) {
+}
 
 // Extend Socket.data to store roomId
 interface SocketData {
@@ -16,7 +21,96 @@ const log = (...args: unknown[]): void => {
 };
 
 const app = express();
-app.use(compression());
+app.use(compression())
+app.use(express.json());
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    if (req.method === "OPTIONS") {
+        res.sendStatus(200);
+        return;
+    }
+    next();
+});
+
+const JDOODLE_LANG_MAP: Record<string, { language: string; versionIndex: string }> = {
+    javascript: { language: "nodejs", versionIndex: "5" },
+    typescript: { language: "typescript", versionIndex: "0" },
+    python: { language: "python3", versionIndex: "5" },
+    java: { language: "java", versionIndex: "4" },
+    cpp: { language: "cpp", versionIndex: "5" },
+    go: { language: "go", versionIndex: "4" },
+    rust: { language: "rust", versionIndex: "4" }
+};
+
+// JDoodle Code Execution proxy endpoint
+app.post("/api/execute", async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { code, language, stdin } = req.body;
+
+        const clientId = process.env.CLIENT_ID;
+        const clientSecret = process.env.CLIENT_SECRET || process.env.CLIENT_SECRECT;
+
+        if (!clientId || !clientSecret) {
+            res.status(500).json({
+                error: "JDoodle API credentials are not configured on the server. Please check .env.local."
+            });
+            return;
+        }
+
+        const mapped = JDOODLE_LANG_MAP[language];
+        if (!mapped) {
+            res.status(400).json({
+                error: `Language '${language}' is not supported by the JDoodle compiler mapping.`
+            });
+            return;
+        }
+
+        const payload = {
+            clientId,
+            clientSecret,
+            script: code,
+            language: mapped.language,
+            versionIndex: mapped.versionIndex,
+            stdin: stdin || ""
+        };
+
+        const response = await fetch("https://api.jdoodle.com/v1/execute", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            res.status(response.status).json({
+                error: `JDoodle execution failed with status ${response.status}`,
+                details: errText
+            });
+            return;
+        }
+
+        const data = (await response.json()) as any;
+
+        res.json({
+            output: data.output || "",
+            statusCode: data.statusCode,
+            memory: data.memory,
+            cpuTime: data.cpuTime,
+            error: data.error || null
+        });
+
+    } catch (err: any) {
+        console.error("Execution error in /api/execute:", err);
+        res.status(500).json({
+            error: "An internal error occurred during code compilation.",
+            details: err.message
+        });
+    }
+});
 
 const server = http.createServer(app);
 
