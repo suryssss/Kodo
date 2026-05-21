@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { IconCode, IconPlus, IconShare, IconUserCode } from "@tabler/icons-react";
 import LightRays from './LightRays';
 import { JoinRoomDialog } from "./JoinRoomDialog";
@@ -9,6 +10,12 @@ interface NavItem {
 }
 
 export default function Hero() {
+    useEffect(() => {
+        const backendUrl = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
+        // Wake up Render server by pinging the root endpoint
+        fetch(backendUrl).catch(() => {});
+    }, []);
+
     const navItems: NavItem[] = [
         { name: "Home", link: "#home" },
         { name: "About", link: "#about" },

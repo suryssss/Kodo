@@ -4,11 +4,16 @@ import { Server, Socket } from "socket.io";
 import compression from "compression";
 import path from "path";
 
-import rooms, { ChatMessage, Room } from "./roomStore";
 try {
     process.loadEnvFile(path.resolve(__dirname, "../.env.local"));
-} catch (err) {
-}
+} catch (err) {}
+try {
+    process.loadEnvFile(path.resolve(__dirname, "../.env"));
+} catch (err) {}
+
+import { prisma } from "./db";
+import { Message as PrismaMessage } from "@prisma/client";
+import rooms, { ChatMessage, Room } from "./roomStore";
 
 // Extend Socket.data to store roomId
 interface SocketData {
@@ -139,28 +144,72 @@ app.get("/", (_req: Request, res: Response) => {
     res.send("Server is Running");
 });
 
+const debounceTimers: Record<string, NodeJS.Timeout> = {};
+
 io.on("connection", (socket: Socket) => {
     log("a user connected", socket.id);
 
-    // Creating a room
-    socket.on("join-room", ({ roomId, username }: { roomId: string; username: string }) => {
+    socket.on("join-room", async ({ roomId, username }: { roomId: string; username: string }) => {
         log("join-room received:", roomId, username);
 
         const socketData = socket.data as SocketData;
         if (socketData.roomId) return;
 
-        if (!rooms[roomId]) {
-            rooms[roomId] = {
-                users: {},
-                hostSocketId: socket.id,
-                code: "// Start coding together...",
-                isLocked: false,
-                language: "javascript",
-                messages: [],
-            };
+        try {
+            let dbRoom = await prisma.room.findUnique({ where: { id: roomId } });
+            if (!dbRoom) {
+                dbRoom = await prisma.room.create({
+                    data: {
+                        id: roomId,
+                        code: "// Start coding together...",
+                        language: "javascript",
+                        isLocked: false
+                    }
+                });
+            }
+
+            const dbMessages = await prisma.message.findMany({
+                where: { roomId },
+                orderBy: { timestamp: "asc" },
+                take: 100
+            });
+            const chatHistory: ChatMessage[] = dbMessages.map((m: PrismaMessage) => ({
+                username: m.username,
+                message: m.message,
+                timestamp: m.timestamp.getTime(),
+                socketId: m.socketId
+            }));
+
+            await prisma.session.upsert({
+                where: { socketId: socket.id },
+                update: { roomId, username },
+                create: { socketId: socket.id, roomId, username }
+            });
+
+            if (!rooms[roomId]) {
+                rooms[roomId] = {
+                    users: {},
+                    hostSocketId: socket.id,
+                    code: dbRoom.code,
+                    isLocked: dbRoom.isLocked,
+                    language: dbRoom.language,
+                    messages: chatHistory,
+                };
+            }
+        } catch (error) {
+            console.error("Database error during join-room:", error);
+            if (!rooms[roomId]) {
+                rooms[roomId] = {
+                    users: {},
+                    hostSocketId: socket.id,
+                    code: "// Start coding together...",
+                    isLocked: false,
+                    language: "javascript",
+                    messages: [],
+                };
+            }
         }
 
-        // Store roomId
         socketData.roomId = roomId;
 
         rooms[roomId].users[socket.id] = {
@@ -178,7 +227,6 @@ io.on("connection", (socket: Socket) => {
             hostSocketId: room.hostSocketId,
         });
 
-        // Send chat history to new user
         io.to(socket.id).emit("chat-history", room.messages);
 
         if (!room.hostSocketId) {
@@ -190,20 +238,16 @@ io.on("connection", (socket: Socket) => {
             });
         }
 
-        // userList
         const userList = Object.values(room.users).map((u) => ({
             username: u.username,
             socketId: u.socketId,
             isHost: u.socketId === room.hostSocketId,
         }));
 
-        // joining notification
         io.to(roomId).emit("user-joined", {
             username,
             users: userList,
         });
-
-        log("join-room received:", roomId, username);
     });
 
     socket.on("code-change", ({ roomId, code }: { roomId: string; code: string }) => {
@@ -216,26 +260,43 @@ io.on("connection", (socket: Socket) => {
 
         room.code = code;
         socket.to(roomId).emit("sync-code", { code });
+
+        if (debounceTimers[roomId]) {
+            clearTimeout(debounceTimers[roomId]);
+        }
+        debounceTimers[roomId] = setTimeout(async () => {
+            try {
+                await prisma.room.update({
+                    where: { id: roomId },
+                    data: { code: room.code }
+                });
+                log(`Saved code for room ${roomId} to DB.`);
+            } catch (error) {
+                console.error(`Failed to save code for room ${roomId}:`, error);
+            }
+        }, 15000);
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
         const socketData = socket.data as SocketData;
         const roomId = socketData.roomId;
+
+        try {
+            await prisma.session.delete({ where: { socketId: socket.id } }).catch(() => {});
+        } catch (e) {}
+
         if (!roomId || !rooms[roomId]) return;
 
         const room = rooms[roomId];
         const user = room.users[socket.id];
         const username = user ? user.username : "Unknown";
 
-        // Remove user
         delete room.users[socket.id];
 
         if (socket.id === room.hostSocketId) {
             const remainingSocketIds = Object.keys(room.users);
             if (remainingSocketIds.length > 0) {
                 room.hostSocketId = remainingSocketIds[0];
-                log("new host assigned:", room.hostSocketId);
-                // Notification for the new host
                 io.to(room.hostSocketId).emit("host-assigned", { isHost: true });
             } else {
                 room.hostSocketId = null;
@@ -253,43 +314,61 @@ io.on("connection", (socket: Socket) => {
             users: userList,
         });
 
-        // Clean up
         if (Object.keys(room.users).length === 0) {
+            if (debounceTimers[roomId]) {
+                clearTimeout(debounceTimers[roomId]);
+                delete debounceTimers[roomId];
+                try {
+                    await prisma.room.update({
+                        where: { id: roomId },
+                        data: { code: room.code }
+                    });
+                } catch (e) {}
+            }
             delete rooms[roomId];
         }
     });
 
-    socket.on("toggle-lock", ({ roomId }: { roomId: string }) => {
+    socket.on("toggle-lock", async ({ roomId }: { roomId: string }) => {
         const room = rooms[roomId];
         if (!room) return;
 
         if (room.hostSocketId !== socket.id) {
-            log("only host can lock the room");
             return;
         }
         room.isLocked = !room.isLocked;
 
-        log("room:", roomId, room.isLocked ? "Locked" : "Unlocked");
-
         io.to(roomId).emit("lock-state-changed", {
             isLocked: room.isLocked,
         });
+
+        try {
+            await prisma.room.update({
+                where: { id: roomId },
+                data: { isLocked: room.isLocked }
+            });
+        } catch (e) {}
     });
 
-    socket.on("language-change", ({ roomId, language }: { roomId: string; language: string }) => {
+    socket.on("language-change", async ({ roomId, language }: { roomId: string; language: string }) => {
         const room = rooms[roomId];
         if (!room) return;
         if (socket.id !== room.hostSocketId) return;
 
         room.language = language;
-
         io.to(roomId).emit("language-update", { language });
+
+        try {
+            await prisma.room.update({
+                where: { id: roomId },
+                data: { language }
+            });
+        } catch (e) {}
     });
 
-    // Chat message handling
     socket.on(
         "send-message",
-        ({ roomId, username, message }: { roomId: string; username: string; message: string }) => {
+        async ({ roomId, username, message }: { roomId: string; username: string; message: string }) => {
             const room = rooms[roomId];
             if (!room) return;
 
@@ -300,15 +379,26 @@ io.on("connection", (socket: Socket) => {
                 socketId: socket.id,
             };
 
-            // Store message in room history (limit to last 100 messages)
             room.messages.push(chatMessage);
             if (room.messages.length > 100) {
                 room.messages = room.messages.slice(-100);
             }
 
-            // Broadcast to all users in the room
             io.to(roomId).emit("chat-message", chatMessage);
-            log("Chat message sent:", username, message);
+
+            try {
+                await prisma.message.create({
+                    data: {
+                        roomId,
+                        username,
+                        message,
+                        socketId: socket.id,
+                        timestamp: new Date(chatMessage.timestamp)
+                    }
+                });
+            } catch (error) {
+                console.error("Failed to save message to DB:", error);
+            }
         }
     );
 
@@ -319,8 +409,18 @@ io.on("connection", (socket: Socket) => {
     });
 });
 
-const PORT: number = parseInt(process.env.PORT || "4000", 10);
+async function startServer() {
+    try {
+        await prisma.session.deleteMany({});
+        log("Cleaned up stale sessions from database.");
+    } catch (e) {
+        console.error("Failed to clean up stale sessions:", e);
+    }
+    
+    const PORT: number = parseInt(process.env.PORT || "4000", 10);
+    server.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
 
-server.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+startServer();

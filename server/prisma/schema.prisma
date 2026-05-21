@@ -1,0 +1,38 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Room {
+  id           String    @id
+  code         String    @default("")
+  language     String    @default("javascript")
+  isLocked     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  messages     Message[]
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  socketId  String   @unique
+  username  String
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  username  String
+  message   String
+  socketId  String
+  isAi      Boolean  @default(false)
+  timestamp DateTime @default(now())
+}
