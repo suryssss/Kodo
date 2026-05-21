@@ -105,10 +105,8 @@ Navigate to `http://localhost:3000` in your browser. Create a new room, share th
 - **Editor:** Monaco Editor
 - **Backend:** Node.js, Express, Socket.io
 - **Database:** PostgreSQL, Prisma ORM
-- **AI Integration:** Google Gemini API (`gemini-1.5-flash`)
-- **Execution Environment:** Piston API (JDoodle fallback)
+- **AI Integration:** Google Gemini API (`gemini-2.5-flash`)
+- **Execution Environment:** JDoodle fallback
 
 ---
 
-## 📝 License
-This project is open-source and available under the MIT License.
