@@ -43,7 +43,7 @@ Kodo deeply integrates LLM workflows to supercharge the learning and debugging e
 ```mermaid
 graph TD;
     Client[Next.js Client + Monaco Editor] <-->|WebSockets| Server[Node.js + Express + Socket.io];
-    Server -->|Code Execution| Piston[Piston Execution Engine];
+    Server -->|Code Execution| Jdoodle[Jdoodle Execution Engine];
     Server -->|Read/Write History| DB[(PostgreSQL Database)];
     Server <-->|AI Prompts & Auto-Fixes| Gemini[Google Gemini API];
 ```
